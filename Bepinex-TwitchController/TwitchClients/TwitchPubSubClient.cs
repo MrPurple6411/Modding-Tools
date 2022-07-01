@@ -1,14 +1,14 @@
-﻿using LitJson;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using TwitchController.Player_Events.Models;
-using TwitchController.TwitchClients.Models;
-
-namespace TwitchController
+﻿namespace TwitchController
 {
+    using LitJson;
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using TwitchController.Player_Events.Models;
+    using TwitchController.TwitchClients.Models;
+
     public class TwitchPubSubClient
     {
 
@@ -30,6 +30,17 @@ namespace TwitchController
         public bool IsClientConnected()
         {
             return _twitchMessageClient?.IsConnected() ?? false;
+        }
+
+        public bool IsChannelConnected(string channelName, out Channel outchannel)
+        {
+            outchannel = null;
+            if (_channel?.Name == channelName)
+            {
+                outchannel = _channel;
+                return true;
+            }
+            return false;
         }
 
         /// <summary>
@@ -58,7 +69,7 @@ namespace TwitchController
             }
             catch(Exception ex) 
             {
-                Controller._instance._log.LogError($"{ex}");
+                Console.WriteLine($"[Error] {ex}");
             }
 
             try
@@ -77,7 +88,6 @@ namespace TwitchController
         /// <returns></returns>
         public Task ConnectAsync(string oauth, string nickId, CancellationToken cancellationToken)
         {
-
             _twitchMessageClient = new WebSocketPubSubClient();
             _twitchMessageClient.MessageReceived += OnRawMessageReceived;
             _twitchMessageClient.ConnectionClosed += OnConnectionClosed;
@@ -91,7 +101,17 @@ namespace TwitchController
         /// <returns></returns>
         public Task ReConnectAsync()
         {
-            return _twitchMessageClient.ConnectAsync(controller._secrets.api_token, controller._secrets.nick_id, controller.cts2);
+            return _twitchMessageClient?.ConnectAsync(Controller._secrets.access_token, Controller._secrets.id, controller.cts2) ?? ConnectAsync(Controller._secrets.access_token, Controller._secrets.id, controller.cts2);
+        }
+
+        public Task DisconnectAsync(CancellationToken cancellationToken)
+        {
+            if (_twitchMessageClient != null)
+            {
+                return _twitchMessageClient.DisconnectAsync(cancellationToken);
+            }
+
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -101,9 +121,8 @@ namespace TwitchController
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
         public Channel JoinChannel(string channelName)
-        {
+        {            
             _channel = new Channel(channelName.ToLower(), _twitchMessageClient);
-
             return _channel;
         }
 
@@ -124,21 +143,21 @@ namespace TwitchController
             switch(msgType)
             {
                 case "pong":
-                    Controller._instance._log.LogError("PubSub Pong Recieved!");
+                    Console.WriteLine($"PubSub Pong Recieved!");
                     return false;
                 case "response":
                     if(keys.Contains("error") && !string.IsNullOrWhiteSpace(data[keys.IndexOf("error")].ToString()))
                     {
-                        Controller._instance._log.LogFatal($"Failed to properly connect to PubSub! Restarting game REQUIRED!");
+                        Console.WriteLine($"[Error] Failed to properly connect to PubSub! Restarting game REQUIRED!");
                     }
                     else
                     {
-                        Controller._instance._log.LogError($"Connected to PubSub!");
+                        Console.WriteLine($"Connected to PubSub!");
                     }
                     return false;
                 case "reconnect":
-                    Controller._instance._log.LogFatal($"Twitch Server Restarting connection will be lost within 30 seconds.");
-                    _twitchMessageClient.DisconnectAsync(Controller._instance.cts2).Wait();
+                    Console.WriteLine($"[Warning] Twitch Server Restarting connection will be lost within 30 seconds.");
+                    _twitchMessageClient.DisconnectAsync(Controller.Instance.cts2).Wait();
                     break;
                 case "message":
                     MessageResponse messageResponse = JsonMapper.ToObject<MessageResponse>(message);
@@ -163,8 +182,7 @@ namespace TwitchController
                             }
                             catch(Exception e)
                             {
-                                Controller._instance._log.LogFatal($"Failed to convert {MR} into SubEvent.");
-                                Controller._instance._log.LogFatal(e);
+                                Console.WriteLine($"[Error] Failed to convert {MR} into SubEvent.", e);
                                 return false;
                             }
                         case "channel-bits-events-v2":
@@ -181,8 +199,7 @@ namespace TwitchController
                             }
                             catch(Exception e)
                             {
-                                Controller._instance._log.LogFatal($"Failed to convert {MR} into BitsEvent.");
-                                Controller._instance._log.LogFatal(e);
+                                Console.WriteLine($"[Error] Failed to convert {MR} into BitsEvent.", e);
                                 return false;
                             }
                         case "channel-points-channel-v1":
@@ -193,8 +210,8 @@ namespace TwitchController
                                     JsonReader reader = new JsonReader(MR) { SkipNonMembers = true, AllowComments = true, AllowSingleQuotedStrings = true };
                                     ChannelPointsMessageResponse pointsMessage = JsonMapper.ToObject<ChannelPointsMessageResponse>(reader);
 
-                                    msg.Host = $"channel-points-channel-v1.{controller._secrets.nick_id}";
-                                    msg.Channel = controller._secrets.username.ToLower();
+                                    msg.Host = $"channel-points-channel-v1.{Controller._secrets.id}";
+                                    msg.Channel = Controller._secrets.username.ToLower();
                                     msg.RawMessage = message;
                                     msg.User = pointsMessage.data.redemption.user.display_name;
                                     msg.TriggerText = pointsMessage.data.redemption.reward.title;
@@ -203,8 +220,7 @@ namespace TwitchController
                                 }
                                 catch(Exception e)
                                 {
-                                    Controller._instance._log.LogFatal($"Failed to convert {MR} into Points Event.");
-                                    Controller._instance._log.LogFatal(e);
+                                    Console.WriteLine($"[Error] Failed to convert {MR} into Points Event.", e);
                                     return false;
                                 }
                             }
@@ -212,7 +228,7 @@ namespace TwitchController
                         case "hype-train-events-v1":
                             if(MR.Contains("hype-train-start"))
                             {
-                                Controller.HypeTrain = true;
+                                Controller.Instance.HypeTrain = true;
                                 if(controller.eventLookup.TryGetEvent("HypeTrain", out EventInfo eventInfo))
                                 {
                                     eventInfo.BitCost = 100;
@@ -223,14 +239,14 @@ namespace TwitchController
                             }
                             else if(MR.Contains("hype-train-level-up"))
                             {
-                                Controller.HypeLevel += 1;
-                                controller.eventLookup.Lookup($"HypeTrainLevel{Controller.HypeLevel}", $"!!!LEVEL {Controller.HypeLevel} HYPETRAIN!!!");
+                                Controller.Instance.HypeLevel += 1;
+                                controller.eventLookup.Lookup($"HypeTrainLevel{Controller.Instance.HypeLevel}", $"!!!LEVEL {Controller.Instance.HypeLevel} HYPETRAIN!!!");
                                 return false;
                             }
                             else if(MR.Contains("hype-train-end"))
                             {
-                                Controller.HypeTrain = false;
-                                Controller.HypeLevel = 1;
+                                Controller.Instance.HypeTrain = false;
+                                Controller.Instance.HypeLevel = 1;
                                 if(controller.eventLookup.TryGetEvent("HypeTrain", out EventInfo eventInfo))
                                 {
                                     eventInfo.BitCost = 0;
@@ -241,7 +257,7 @@ namespace TwitchController
                             }
                             return false;
                         default:
-                            Controller._instance._log.LogFatal($"PubSub Event Failed to Parse \n {message}");
+                            Console.WriteLine($"[Error] PubSub Event Failed to Parse \n {message}");
                             return false;
                     }
 

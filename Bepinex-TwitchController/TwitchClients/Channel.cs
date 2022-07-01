@@ -1,9 +1,9 @@
-﻿using System;
-using System.Threading;
-using System.Threading.Tasks;
-
-namespace TwitchController
+﻿namespace TwitchController
 {
+    using System;
+    using System.Threading;
+    using System.Threading.Tasks;
+
     public class Channel
     {
         public string Name { get; private set; }

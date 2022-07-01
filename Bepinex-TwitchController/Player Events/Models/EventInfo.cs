@@ -1,7 +1,7 @@
-﻿using System;
-
-namespace TwitchController.Player_Events.Models
+﻿namespace TwitchController.Player_Events.Models
 {
+    using System;
+
     public class EventInfo
     {
         public string Perp;

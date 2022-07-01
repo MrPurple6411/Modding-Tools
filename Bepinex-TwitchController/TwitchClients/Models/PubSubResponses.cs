@@ -1,8 +1,9 @@
-﻿using LitJson;
-using System.Collections.Generic;
-
-namespace TwitchController.TwitchClients.Models
+﻿namespace TwitchController.TwitchClients.Models
 {
+
+    using LitJson;
+    using System.Collections.Generic;
+
     public class MessageResponse
     {
         public string type { get; set; }

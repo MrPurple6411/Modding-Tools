@@ -1,11 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using TwitchController.Player_Events.Models;
-using UnityEngine;
-
-namespace TwitchController.Player_Events
+﻿namespace TwitchController.Player_Events
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using TwitchController.Player_Events.Models;
+
     public class EventLookup
     {
         private readonly Controller controller;
@@ -25,7 +24,7 @@ namespace TwitchController.Player_Events
         public List<string> RunningEventIDs = new List<string>();
 
         // List with currently running timed events
-        public Dictionary<string, float> Cooldowns = new Dictionary<string, float>();
+        public Dictionary<string, DateTime> Cooldowns = new Dictionary<string, DateTime>();
 
         //MAP OF EVENTS TO THEIR APPROPRIATE FUNCTIONS
         // Parameter: ID, Action<string, string>, BitCost, CooldownSeconds
@@ -38,7 +37,7 @@ namespace TwitchController.Player_Events
                 EventDictionary.Add(EventID, eventInfo);
                 return true;
             }
-            controller._log.LogError($"Event with ID: {EventID} already registered!");
+            Console.WriteLine($"[Error] Event with ID: {EventID} already registered!");
             return false;
         }
 
@@ -49,7 +48,7 @@ namespace TwitchController.Player_Events
                 EventDictionary.Add(EventID, eventInfo);
                 return true;
             }
-            controller._log.LogError($"Event with ID: {EventID} already registered!");
+            Console.WriteLine($"[Error] Event with ID: {EventID} already registered!");
             return false;
         }
 
@@ -60,7 +59,7 @@ namespace TwitchController.Player_Events
                 EventDictionary.Add(EventID, new EventInfo(Action, BitCost, CooldownSeconds));
                 return true;
             }
-            controller._log.LogError($"Event with ID: {EventID} already registered!");
+            Console.WriteLine($"[Error] Event with ID: {EventID} already registered!");
             return false;
         }
 
@@ -71,7 +70,7 @@ namespace TwitchController.Player_Events
                 EventDictionary.Add(EventID, new TimedEventInfo(Action, BitCost, CooldownSeconds, TimedAction, TimerLength));
                 return true;
             }
-            controller._log.LogError($"Event with ID: {EventID} already registered!");
+            Console.WriteLine($"[Error] Event with ID: {EventID} already registered!");
             return false;
         }
 
@@ -85,12 +84,25 @@ namespace TwitchController.Player_Events
             string message = "";
             foreach (KeyValuePair<string, EventInfo> pair in EventDictionary)
             {
-                if(pair.Value.BitCost > 0)
+                if (pair.Value.BitCost > 0)
                 {
                     string costText = $"[{pair.Key}]: {pair.Value.BitCost} bits ||| ";
                     message += costText;
                 }
             }
+            Console.WriteLine($"GetBitCosts: {message}");
+            return message;
+        }
+
+        public string GetAll()
+        {
+            string message = "";
+            foreach (KeyValuePair<string, EventInfo> pair in EventDictionary)
+            {
+                    string costText = $"[{pair.Key}]: {pair.Value.BitCost} bits ||| ";
+                    message += costText;
+            }
+            Console.WriteLine($"GetAll: {message}");
             return message;
         }
 
@@ -118,7 +130,7 @@ namespace TwitchController.Player_Events
             var Events = EventDictionary.Where(it => it.Value.BitCost > 0 && it.Value.BitCost == bits)?.ToList() ?? new List<KeyValuePair<string, EventInfo>>();
             KeyValuePair<string, EventInfo> Event = default(KeyValuePair<string, EventInfo>);
             if(Events.Count > 0)
-                Event = Events[UnityEngine.Random.Range(0, Events.Count - 1)];
+                Event = Events[new Random().Next(0, Events.Count - 1)];
             else
                 Event = EventDictionary.Where(it => it.Value.BitCost > 0 && it.Value.BitCost <= bits)?.OrderByDescending(it => it.Value.BitCost)?.FirstOrDefault() ?? default;
 

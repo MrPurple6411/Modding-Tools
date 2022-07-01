@@ -1,10 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using TwitchController.Player_Events.Models;
-using UnityEngine;
-
-namespace TwitchController
+﻿namespace TwitchController
 {
+    using System;
+    using System.Collections.Generic;
+    using TwitchController.Player_Events.Models;
+
     internal class TimerCooldown
     {
 
@@ -23,7 +22,7 @@ namespace TwitchController
             cooldownEvents = new List<KeyValuePair<string, CustomEvent>>();
 
             controller.eventLookup.ActionQueue = new List<KeyValuePair<string, EventInfo>>();
-            controller.eventLookup.Cooldowns = new Dictionary<string, float>();
+            controller.eventLookup.Cooldowns = new Dictionary<string, DateTime>();
             controller.eventLookup.RunningEventIDs = new List<string>();
             controller.eventLookup.TimedActionsQueue = new List<Action>();
         }
@@ -56,7 +55,7 @@ namespace TwitchController
                         KeyValuePair<string, TimedEventInfo> timedEvent = customEvent.GetTimedEvent();
                         controller.eventLookup.RunningEventIDs.Remove(timedEvent.Key);
                         controller.eventLookup.TimedActionsQueue.Add(timedEvent.Value.TimedAction);
-                        controller.eventLookup.Cooldowns.Add(timedEvent.Key, Time.time);
+                        controller.eventLookup.Cooldowns.Add(timedEvent.Key, DateTime.Now);
                         AddCooldownEvent(timedEvent.Key, timedEvent.Value.CooldownSeconds, timedEvent.Value);
                     }
                     customTimerEvents.RemoveAt(i);
@@ -69,7 +68,7 @@ namespace TwitchController
             foreach (KeyValuePair<string, CustomEvent> cooldownText in cooldownEvents)
             {
                 KeyValuePair<string, EventInfo> eventInfo = cooldownText.Value.GetEvent();
-                float currentCooldownDuration = Time.time - controller.eventLookup.Cooldowns[eventInfo.Key];
+                double currentCooldownDuration = (DateTime.Now - controller.eventLookup.Cooldowns[eventInfo.Key]).TotalSeconds;
                 if (currentCooldownDuration >= eventInfo.Value.CooldownSeconds)
                 {
                     finishedCooldowns.Add(eventInfo.Key);
@@ -95,8 +94,8 @@ namespace TwitchController
                 }
                 catch (Exception e)
                 {
-                    controller._log.LogError("Failed to invoke action " + e.Message);
-                    controller._log.LogError(e.StackTrace);
+                    Console.WriteLine($"[Error] Failed to invoke action " + e.Message);
+                    Console.WriteLine(e.StackTrace);
                     controller.eventLookup.TimedActionsQueue.RemoveAt(0);
                 }
             }
@@ -130,7 +129,7 @@ namespace TwitchController
                     else
                     {
                         AddCooldown(localEventInfo.Key, 1, localEventInfo.Value);
-                        controller.eventLookup.Cooldowns.Add(localEventInfo.Key, Time.time);
+                        controller.eventLookup.Cooldowns.Add(localEventInfo.Key, DateTime.Now);
                         AddCooldownEvent(localEventInfo.Key, localEventInfo.Value.CooldownSeconds, localEventInfo.Value);
                     }
 
@@ -143,8 +142,8 @@ namespace TwitchController
                         }
                         catch (Exception e)
                         {
-                            controller._log.LogError("Failed to invoke action " + e.Message);
-                            controller._log.LogError(e.StackTrace);
+                            Console.WriteLine($"[Error] Failed to invoke action " + e.Message);
+                            Console.WriteLine(e.StackTrace);
                         }
                     }
 
@@ -154,8 +153,8 @@ namespace TwitchController
                     }
                     catch (Exception e)
                     {
-                        controller._log.LogError("Failed to invoke action " + e.Message);
-                        controller._log.LogError(e.StackTrace);
+                        Console.WriteLine($"[Error] Failed to invoke action " + e.Message);
+                        Console.WriteLine(e.StackTrace);
                     }
                 }
 
@@ -206,7 +205,7 @@ namespace TwitchController
         private class CustomEvent
         {
             private readonly float duration;
-            private readonly float startTime;
+            private readonly DateTime startTime;
 
             private KeyValuePair<string, TimedEventInfo> timedEvent;
             private KeyValuePair<string, EventInfo> normalEvent;
@@ -215,13 +214,13 @@ namespace TwitchController
             public CustomEvent(float duration)
             {
                 this.duration = duration;
-                startTime = Time.time;
+                startTime = DateTime.Now;
 
             }
 
             public bool IsFinished()
             {
-                return Time.time - startTime >= duration;
+                return (DateTime.Now - startTime).TotalSeconds >= duration;
             }
 
             public void SetTimedEvent(KeyValuePair<string, TimedEventInfo> timedEvent)

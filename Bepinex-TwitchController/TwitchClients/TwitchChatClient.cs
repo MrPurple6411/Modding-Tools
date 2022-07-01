@@ -1,12 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
-
-namespace TwitchController
+﻿namespace TwitchController
 {
+    using System;
+    using System.Text.RegularExpressions;
+    using System.Threading;
+    using System.Threading.Tasks;
+
     public class TwitchChatClient
     {
 
@@ -62,17 +60,17 @@ namespace TwitchController
             // To ensure that your connection to the server is not prematurely terminated, reply with PONG
             if (e.StartsWith("PING"))
             {
-                controller._log.LogMessage($"Twitch Client Ping");
+                Console.WriteLine($"Twitch Client Ping");
                 Task pong = SendPongResponseAsync();
                 await pong;
 
                 if (pong.Status != TaskStatus.RanToCompletion)
                 {
-                    controller._log.LogError($"Sending Pong Failed! {pong.Status}");
+                    Console.WriteLine($"[Error] Sending Pong Failed! {pong.Status}");
                 }
                 if (pong.Status == TaskStatus.RanToCompletion)
                 {
-                    controller._log.LogMessage($"Twitch Client replied with Pong.");
+                    Console.WriteLine($"Twitch Client replied with Pong.");
                 }
 
                 return;
@@ -99,13 +97,19 @@ namespace TwitchController
         /// <param name="nick">Your nickname must be your Twitch username (login name) in lowercase</param>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        public Task ConnectAsync(string oauth, string nick, CancellationToken cancellationToken)
+        public async Task ConnectAsync(string oauth, string nick, CancellationToken cancellationToken)
         {
             _twitchMessageClient = new WebSocketMessageClient();
             _twitchMessageClient.MessageReceived += OnRawMessageReceived;
             _twitchMessageClient.ConnectionClosed += OnConnectionClosed;
 
-            return _twitchMessageClient.ConnectAsync(oauth, nick.ToLower(), cancellationToken);
+            var connected = await _twitchMessageClient.ConnectAsync(oauth, nick, cancellationToken);
+
+            while (!connected && !cancellationToken.IsCancellationRequested)
+            {
+                await Task.Delay(1000);
+                connected = await _twitchMessageClient.ConnectAsync(oauth, nick, cancellationToken);
+            }
         }
 
         /// <summary>
@@ -114,7 +118,17 @@ namespace TwitchController
         /// <returns></returns>
         public Task ReConnectAsync()
         {
-            return _twitchMessageClient.ConnectAsync("oauth:" + controller._secrets.api_token, controller._secrets.username, controller.cts);
+            return _twitchMessageClient?.ConnectAsync("oauth:" + Controller._secrets.access_token, Controller._secrets.username, controller.cts) ?? ConnectAsync("oauth:" + Controller._secrets.access_token, Controller._secrets.username, controller.cts);
+        }
+
+        public Task DisconnectAsync(CancellationToken cancellationToken)
+        {
+            if(_twitchMessageClient != null)
+            {
+                return _twitchMessageClient.DisconnectAsync(cancellationToken);
+            }
+
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -125,7 +139,19 @@ namespace TwitchController
         /// <returns></returns>
         public async Task<Channel> JoinChannelAsync(string channelName, CancellationToken cancellationToken)
         {
-            await _twitchMessageClient.SendMessageAsync($"JOIN #{channelName.ToLower()}", cancellationToken);
+            var joined = false;
+
+            while (!joined && !cancellationToken.IsCancellationRequested)
+            {
+                if (_twitchMessageClient?.IsConnected() ?? false)
+                {
+                    joined = await _twitchMessageClient.SendMessageAsync($"JOIN #{channelName.ToLower()}", cancellationToken);
+                }
+                else
+                {
+                    await ReConnectAsync();
+                }
+            }
 
             _channel = new Channel(channelName.ToLower(), _twitchMessageClient);
 
@@ -137,9 +163,29 @@ namespace TwitchController
         /// To ensure that your connection to the server is not prematurely terminated, reply with PONG :tmi.twitch.tv.
         /// </summary>
         /// <returns></returns>
-        private Task SendPongResponseAsync()
+        private async Task SendPongResponseAsync()
         {
-            return _twitchMessageClient.SendMessageAsync("PONG :tmi.twitch.tv", CancellationToken.None);
+            var sent = false;
+
+            while (!sent)
+            {
+                try
+                {
+                    if (_twitchMessageClient.IsConnected())
+                    {
+                        await _twitchMessageClient.SendMessageAsync("PONG :tmi.twitch.tv", controller.cts);
+                        sent = true;
+                    }
+                    else
+                    {
+                        await ReConnectAsync();
+                    }
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine($"[Error] Sending Pong Failed! {e.Message}");
+                }
+            }
         }
 
 

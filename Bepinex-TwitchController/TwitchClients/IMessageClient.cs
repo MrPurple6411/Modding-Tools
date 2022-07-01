@@ -1,9 +1,9 @@
-﻿using System;
-using System.Threading;
-using System.Threading.Tasks;
-
-namespace TwitchController
+﻿namespace TwitchController
 {
+    using System;
+    using System.Threading;
+    using System.Threading.Tasks;
+
     internal interface IMessageClient
     {
         /// <summary>
@@ -13,7 +13,7 @@ namespace TwitchController
         /// <param name="nick">Your nickname must be your Twitch username (login name) in lowercase</param>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        Task ConnectAsync(string oauth, string nick, CancellationToken cancellationToken);
+        Task<bool> ConnectAsync(string oauth, string nick, CancellationToken cancellationToken);
 
         /// <summary>
         /// Determines whether this instance is connected.
@@ -36,7 +36,7 @@ namespace TwitchController
         /// <param name="message">Message contant not longer then 512 bytes.</param>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        Task SendMessageAsync(string message, CancellationToken cancellationToken);
+        Task<bool> SendMessageAsync(string message, CancellationToken cancellationToken);
 
         /// <summary>
         /// Triggers when any message received.

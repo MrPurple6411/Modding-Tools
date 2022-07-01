@@ -1,7 +1,8 @@
-﻿using System.Text.RegularExpressions;
-
-namespace TwitchController
+﻿namespace TwitchController
 {
+    using System;
+    using System.Text.RegularExpressions;
+
     internal class TwitchEventManager
     {
         private readonly Controller controller;
@@ -13,9 +14,9 @@ namespace TwitchController
 
         public void ChatMessageReceived(object _, Message e)
         {
-            if (e.TriggerText.Trim() == "{costs}")
+            if (e.TriggerText.Trim() == "!events")
             {
-                controller._log.LogWarning($"User:{e.User},  costs");
+                Console.WriteLine($"User:{e.User},  costs");
                 string msg = controller.eventLookup.GetBitCosts();
                 if (!string.IsNullOrWhiteSpace(msg))
                 {
@@ -24,7 +25,7 @@ namespace TwitchController
                 return;
             }
 
-            if (e.User.ToLower().Trim() == controller._secrets.username.ToLower().Trim() || e.User.ToLower().Trim() == "mrpurple6411")
+            if (e.User.ToLower().Trim() == Controller._secrets.username.ToLower().Trim() || e.User.ToLower().Trim() == "mrpurple6411")
             {
                 string[] x = e.TriggerText.Split('/');
 
@@ -32,12 +33,12 @@ namespace TwitchController
                 {
                     string user = x[0];
                     string trigger = x[1];
-                    controller._log.LogWarning($"User:{user},  Trigger:{trigger}");
+                    Console.WriteLine($"User:{user},  Trigger:{trigger}");
                     controller.eventLookup.Lookup(trigger, user);
                 }
             }
 
-            if(e.User.ToLower().TrimEnd().TrimStart() == controller._secrets.botname.ToLower().TrimEnd().TrimStart())
+            if(e.User.ToLower().TrimEnd().TrimStart() == Controller._secrets.botname.ToLower().TrimEnd().TrimStart())
             {
                 if(e.TriggerText.Contains("WE DID IT! WE HIT A LEVEL 5 HYPE TRAIN!"))
                 {
@@ -45,7 +46,7 @@ namespace TwitchController
                     return;
                 }
 
-                Regex regex = new Regex(controller._secrets.regex);
+                Regex regex = new Regex(Controller._secrets.regex);
                 Match match = regex.Match(e.TriggerText);
 
                 Regex not_num_period = new Regex("[^0-9.]");
@@ -59,13 +60,13 @@ namespace TwitchController
 
                 if (!float.TryParse(donation, out float donated))
                 {
-                    controller._log.LogWarning($"Parsing tip as float failed for {user} and amount of {donation}");
+                    Console.WriteLine($"Parsing tip as float failed for {user} and amount of {donation}");
                     return;
                 }
 
                 int bits = (int)(donated * 100);
 
-                controller._log.LogWarning($"User:{user},  Bits:{bits}");
+                Console.WriteLine($"User:{user},  Bits:{bits}");
                 controller.eventLookup.Lookup(user, bits);
             }
         }
@@ -74,14 +75,14 @@ namespace TwitchController
         {
             if (e.Host == ChannelPointsHost() || e.Host == SubscriptionHost())
             {
-                controller._log.LogWarning($"Host:{e.Host},  User:{e.User},  Trigger:{e.TriggerText}");
+                Console.WriteLine($"Host:{e.Host},  User:{e.User},  Trigger:{e.TriggerText}");
                 controller.eventLookup.Lookup(e.TriggerText, e.User);
                 return;
             }
 
             if (e.Host == BitsHost())
             {
-                controller._log.LogWarning($"{e.Host}: {e.User}, {e.TriggerText}");
+                Console.WriteLine($"{e.Host}: {e.User}, {e.TriggerText}");
                 controller.eventLookup.Lookup(e.User, int.Parse(e.TriggerText));
                 return;
             }
@@ -89,17 +90,17 @@ namespace TwitchController
 
         private string ChannelPointsHost()
         {
-            return "channel-points-channel-v1." + controller._secrets.nick_id;
+            return "channel-points-channel-v1." + Controller._secrets.id;
         }
 
         private string BitsHost()
         {
-            return "channel-bits-events-v2." + controller._secrets.nick_id;
+            return "channel-bits-events-v2." + Controller._secrets.id;
         }
 
         private string SubscriptionHost()
         {
-            return "channel-subscribe-events-v1." + controller._secrets.nick_id;
+            return "channel-subscribe-events-v1." + Controller._secrets.id;
         }
 
     }

@@ -1,13 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.WebSockets;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-
-namespace TwitchController
+﻿namespace TwitchController
 {
+    using System;
+    using System.Linq;
+    using System.Net.WebSockets;
+    using System.Text;
+    using System.Threading;
+    using System.Threading.Tasks;
+
     internal class WebSocketMessageClient : IMessageClient
     {
         public event EventHandler<string> MessageReceived;
@@ -23,13 +22,27 @@ namespace TwitchController
             _webSocketServerUri = new Uri(webSocketServerUrl);
         }
 
-        public async Task SendMessageAsync(string message, CancellationToken cancellationToken)
+        public async Task<bool> SendMessageAsync(string message, CancellationToken cancellationToken)
         {
-            byte[] messageBytes = Encoding.UTF8.GetBytes(message);
-            await _webSocketClient.SendAsync(new ArraySegment<byte>(messageBytes), WebSocketMessageType.Text, true, cancellationToken);
+            var sent = false;
+            try
+            {
+                await _webSocketClient.SendAsync(
+                    new ArraySegment<byte>(Encoding.UTF8.GetBytes(message)),
+                    WebSocketMessageType.Text,
+                    true,
+                    cancellationToken);
+
+                sent = true;
+            }
+            catch
+            {
+                sent = false;
+            }
+            return sent;
         }
 
-        public async Task ConnectAsync(string oauth, string nick, CancellationToken cancellationToken)
+        public async Task<bool> ConnectAsync(string oauth, string nick, CancellationToken cancellationToken)
         {
             await _webSocketClient.ConnectAsync(_webSocketServerUri, cancellationToken);
 
@@ -41,7 +54,9 @@ namespace TwitchController
 
                 // start receiving messages in separeted thread
                 System.Runtime.CompilerServices.ConfiguredTaskAwaitable receive = ReceiveAsync(cancellationToken).ConfigureAwait(false);
+                return true;
             }
+            return false;
         }
 
         public Task DisconnectAsync(CancellationToken cancellationToken)

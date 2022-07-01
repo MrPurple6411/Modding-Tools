@@ -1,14 +1,14 @@
-﻿using LitJson;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.WebSockets;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-
-namespace TwitchController
+﻿namespace TwitchController
 {
+    using LitJson;
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Net.WebSockets;
+    using System.Text;
+    using System.Threading;
+    using System.Threading.Tasks;
+
     internal class WebSocketPubSubClient : IMessageClient
     {
         public event EventHandler<string> MessageReceived;
@@ -24,10 +24,24 @@ namespace TwitchController
             _webSocketServerUri = new Uri(webSocketServerUrl);
         }
 
-        public async Task SendMessageAsync(string message, CancellationToken cancellationToken)
+        public async Task<bool> SendMessageAsync(string message, CancellationToken cancellationToken)
         {
-            byte[] messageBytes = Encoding.UTF8.GetBytes(message);
-            await _webSocketClient.SendAsync(new ArraySegment<byte>(messageBytes), WebSocketMessageType.Text, true, cancellationToken);
+            var sent = false;
+            try
+            {
+                await _webSocketClient.SendAsync(
+                    new ArraySegment<byte>(Encoding.UTF8.GetBytes(message)),
+                    WebSocketMessageType.Text,
+                    true,
+                    cancellationToken);
+
+                sent = true;
+            }
+            catch
+            {
+                sent = false;
+            }
+            return sent;
         }
 
         public static IEnumerable<T[]> AsBatches<T>(T[] input, int n)
@@ -40,7 +54,7 @@ namespace TwitchController
             }
         }
 
-        public async Task ConnectAsync(string token, string channelId, CancellationToken cancellationToken)
+        public async Task<bool> ConnectAsync(string token, string channelId, CancellationToken cancellationToken)
         {
             try
             {
@@ -65,16 +79,20 @@ namespace TwitchController
 
                     Timer timer = new Timer(async (e) =>
                     {
-                        Controller._instance._log.LogMessage("Sending PubSub Ping");
+                        Console.WriteLine("Sending PubSub Ping");
                         await SendMessageAsync("{\"type\":  \"PING\"}", cancellationToken);
                     }, null, TimeSpan.Zero, TimeSpan.FromMinutes(5));
 
                     // start receiving messages in separeted thread
                     System.Runtime.CompilerServices.ConfiguredTaskAwaitable receive = ReceiveAsync(cancellationToken).ConfigureAwait(false);
+                    return true;
                 }
-
+                return false;
             }
-            catch { }
+            catch 
+            {
+                return false;
+            }
         }
 
         public bool IsConnected()
