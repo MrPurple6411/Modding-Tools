@@ -133,9 +133,8 @@
                         AddCooldownEvent(localEventInfo.Key, localEventInfo.Value.CooldownSeconds, localEventInfo.Value);
                     }
 
-                    if (localEventInfo.Value is DataEvent dataEvent)
+                    if (localEventInfo.Value is DataEventInfo dataEvent)
                     {
-
                         try
                         {
                             dataEvent.DataAction?.Invoke(localEventInfo.Key, localEventInfo.Value.Perp, dataEvent.UserInput);

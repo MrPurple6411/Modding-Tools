@@ -10,6 +10,8 @@
 
         public string Channel { get; set; }
 
+        public string Data { get; set; }
+
         public string TriggerText { get; set; }
 
     }

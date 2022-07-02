@@ -24,44 +24,4 @@
             CooldownSeconds = eventInfo.CooldownSeconds;
         }
     }
-
-    public class TimedEventInfo : EventInfo
-    {
-        public Action TimedAction;
-        public int TimerLength;
-
-        public TimedEventInfo(Action<string, string> action, int bitCost, int cooldownSeconds, Action timedAction, int timerLength) : base(action, bitCost, cooldownSeconds)
-        {
-            TimedAction = timedAction;
-            TimerLength = timerLength;
-        }
-
-        public TimedEventInfo(string perp, TimedEventInfo timedEventInfo) : base(perp, timedEventInfo)
-        {
-
-            TimedAction = timedEventInfo.TimedAction;
-            TimerLength = timedEventInfo.TimerLength;
-        }
-
-    }
-
-    public class DataEvent : EventInfo
-    {
-        public Action<string, string, string> DataAction;
-        public string UserInput;
-
-        public DataEvent(Action<string, string> action, int bitCost, Action<string, string, string> dataAction) : base(action, bitCost, 0)
-        {
-            DataAction = dataAction;
-            UserInput = "";
-        }
-
-        public DataEvent(string perp, DataEvent dataEventInfo, string userInput) : base(perp, dataEventInfo)
-        {
-            DataAction = dataEventInfo.DataAction;
-            UserInput = userInput;
-        }
-    }
-
-
 }

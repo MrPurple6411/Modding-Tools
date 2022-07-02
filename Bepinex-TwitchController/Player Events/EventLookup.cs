@@ -28,9 +28,26 @@
 
         //MAP OF EVENTS TO THEIR APPROPRIATE FUNCTIONS
         // Parameter: ID, Action<string, string>, BitCost, CooldownSeconds
-        private readonly Dictionary<string, EventInfo> EventDictionary = new Dictionary<string, EventInfo>();
+        internal readonly Dictionary<string, EventInfo> EventDictionary = new Dictionary<string, EventInfo>();
 
-        public bool AddEvent(string EventID, EventInfo eventInfo)
+        public void RemoveEvent(string EventID)
+        {
+            if (EventDictionary.Keys.Contains(EventID))
+            {
+                EventDictionary.Remove(EventID);
+            }
+        }
+
+        public void ChangeCost(string EventID, int newCost)
+        {
+            if (EventDictionary.TryGetValue(EventID, out var eventInfo))
+            {
+                eventInfo.BitCost = newCost;
+                EventDictionary[EventID] = eventInfo;
+            }
+        }
+
+        public bool AddEvent(string EventID, ref EventInfo eventInfo)
         {
             if (!EventDictionary.Keys.Contains(EventID))
             {
@@ -41,7 +58,7 @@
             return false;
         }
 
-        public bool AddEvent(string EventID, DataEvent eventInfo)
+        public bool AddEvent(string EventID, ref DataEventInfo eventInfo)
         {
             if (!EventDictionary.Keys.Contains(EventID))
             {
@@ -79,34 +96,32 @@
             return EventDictionary.TryGetValue(EventID, out eventInfo);
         }
 
-        public string GetBitCosts()
+        public bool Contains(string EventID)
         {
-            string message = "";
-            foreach (KeyValuePair<string, EventInfo> pair in EventDictionary)
+            return EventDictionary.ContainsKey(EventID);
+        }
+
+        public async void SendBitsEvents()
+        {
+            foreach (KeyValuePair<string, EventInfo> pair in EventDictionary.OrderBy(p => p.Value.BitCost).ThenBy(p => p.Key))
             {
                 if (pair.Value.BitCost > 0)
                 {
-                    string costText = $"[{pair.Key}]: {pair.Value.BitCost} bits ||| ";
-                    message += costText;
+                    string costText = $"[ {pair.Key} ]: {pair.Value.BitCost} bits";
+                    await controller.TextChannel.SendMessageAsync(costText, controller.cts);
                 }
             }
-            Console.WriteLine($"GetBitCosts: {message}");
-            return message;
         }
 
-        public string GetAll()
+        public async void SendAllEvents()
         {
-            string message = "";
-            foreach (KeyValuePair<string, EventInfo> pair in EventDictionary)
+            foreach (KeyValuePair<string, EventInfo> pair in EventDictionary.OrderBy(p=>p.Value.BitCost).ThenBy(p=>p.Key))
             {
-                    string costText = $"[{pair.Key}]: {pair.Value.BitCost} bits ||| ";
-                    message += costText;
+                await controller.TextChannel.SendMessageAsync($"[ {pair.Key} ]{(pair.Value.BitCost > 0 ? $": {pair.Value.BitCost} bits" : "")}", controller.cts);
             }
-            Console.WriteLine($"GetAll: {message}");
-            return message;
         }
 
-        public void Lookup(string EventText, string perp)
+        public void Lookup(string EventText, string perp, Message message = null)
         {
             if (EventDictionary.TryGetValue(EventText.Trim(), out EventInfo eventInfo))
             {
@@ -116,7 +131,10 @@
                         TimedEventInfo tei = new TimedEventInfo(perp, timed);
                         ActionQueue.Add(new KeyValuePair<string, EventInfo>(EventText, tei));
                         break;
-
+                    case DataEventInfo dataEventInfo when message?.Data != null:
+                        DataEventInfo info = new DataEventInfo(perp, dataEventInfo, message.Data);
+                        ActionQueue.Add(new KeyValuePair<string, EventInfo>(EventText, info));
+                            break;
                     default:
                         EventInfo ei = new EventInfo(perp, eventInfo);
                         ActionQueue.Add(new KeyValuePair<string, EventInfo>(EventText, ei));
@@ -125,7 +143,7 @@
             }
         }
 
-        public void Lookup(string perp, int bits)
+        public void Lookup(int bits, string perp, Message message = null)
         {
             var Events = EventDictionary.Where(it => it.Value.BitCost > 0 && it.Value.BitCost == bits)?.ToList() ?? new List<KeyValuePair<string, EventInfo>>();
             KeyValuePair<string, EventInfo> Event = default(KeyValuePair<string, EventInfo>);
@@ -142,6 +160,10 @@
                         TimedEventInfo tei = new TimedEventInfo(perp, timed);
                         ActionQueue.Add(new KeyValuePair<string, EventInfo>(Event.Key, tei));
                         controller.timer.AddQueueEvent(Event.Key);
+                        break;
+                    case DataEventInfo dataEventInfo when message?.Data != null:
+                        DataEventInfo info = new DataEventInfo(perp, dataEventInfo, message.Data);
+                        ActionQueue.Add(new KeyValuePair<string, EventInfo>(Event.Key, info));
                         break;
                     default:
                         EventInfo ei = new EventInfo(perp, Event.Value);

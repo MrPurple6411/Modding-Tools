@@ -2,6 +2,7 @@
 {
     using LitJson;
     using System;
+    using System.Collections.Generic;
     using System.IO;
     using System.Reflection;
     using System.Text;
@@ -19,6 +20,7 @@
         protected internal string username;
         protected internal string botname;
         protected internal string regex;
+        internal List<string> authorizedModerators = new List<string>();
 
         public Secrets(string configFilePath)
         {
@@ -47,6 +49,10 @@
             
             botname = config.BotName;
             regex = config.TipsRegEx;
+            foreach(var authorizedModerator in config.AuthorizedModerators)
+            {
+                authorizedModerators.Add(authorizedModerator.ToLower().Trim());
+            }
 
             StringBuilder stringBuilder2 = new StringBuilder();
             JsonMapper.ToJson(config, new JsonWriter(stringBuilder2) { PrettyPrint = true });

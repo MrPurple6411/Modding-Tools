@@ -12,8 +12,7 @@
 
     public class Controller
     {
-
-        public const string Version = "0.0.0.1";
+        public const string Version = "0.0.0.2";
 
         internal static readonly Secrets _secrets;
         internal readonly TwitchEventManager eventManager;
@@ -28,11 +27,15 @@
 
         private static Controller _instance;
         public static Controller Instance => _instance ?? (_instance = new Controller());
-        private bool loggedIn;
+        private static bool loggedIn;
+        public static bool LoggedIn => loggedIn && _secrets.IsValid();
+
 
         public readonly EventLookup eventLookup;
         public bool HypeTrain = false;
         public int HypeLevel = 1;
+        public int HypeTrainEventCost = 0;
+        private static bool loggingIn;
 
         static Controller()
         {
@@ -45,11 +48,19 @@
             eventLookup = new EventLookup(this);
             eventManager = new TwitchEventManager(this);
             timer = new TimerCooldown(this);
-            Task.Factory.StartNew(async () => await Login()).Wait();
         }
         
-        private async Task Login()
+        /// <summary>
+        /// Launches a HTTPListener on localhost:3000 and then opens the twitch authorization page to get users authorization.
+        /// Then when the redirect happens it will detect the users auth token from the address bar.
+        /// It then uses the authToken to get the user id and username to be able to connect the websockets to the channel.
+        /// None of this data gets stored on disk at any time.
+        /// Which is why the popup will happen every time the start is called for the first time in the applications run.
+        /// HTTPListener will timeout after 3 minutes if the user has not accepted by then they will need to try to connect again.
+        /// </summary>
+        private static async Task Login()
         {
+            loggingIn = true;
             // Create a Http server and start listening for incoming connections
             var listener = new HttpListener();
             string url = "http://localhost:3000/";
@@ -64,7 +75,7 @@
                 "<!DOCTYPE>" +
                 "<html>" +
                 "  <head>" +
-                "    <title>MrPurple's Mod Controller</title>" +
+                "    <title>Twitch Integration Mod Controller</title>" +
                 "  </head>" +
                 "  <body class=\"Flex\" style=\"background-color:black;\">" +
                 "  <div style=\"position: absolute; top: 50 %; left: 50 %; margin - top: -50px; margin - left: -50px; width: 100px; height: 100px;\">" +
@@ -79,8 +90,10 @@
             Console.WriteLine($"Listening for connections on {url}");
             bool runServer = true;
 
+            DateTime time = DateTime.Now.AddMinutes(3);
+
             // While a user hasn't visited the `shutdown` url, keep on handling requests
-            while (runServer)
+            while (runServer && DateTime.Now < time)
             {
                 // Will wait here until we hear from a connection
                 HttpListenerContext ctx = await listener.GetContextAsync();
@@ -122,17 +135,16 @@
                             StreamReader reader = new StreamReader(response.GetResponseStream());
                             string jsonResponse = reader.ReadToEnd();
 
-
-
                             var objectResponse = JsonMapper.ToObject(jsonResponse);
                             _secrets.id = (string)objectResponse["data"][0]["id"];
                             _secrets.username = (string)objectResponse["data"][0]["login"];
+                            pageData = "<!DOCTYPE><html><head></head><body><b>DONE!</b><br>(Please close this tab/window)</body></html>";
                         }
                         catch (Exception e)
                         {
+                            pageData = $"<!DOCTYPE><html><head></head><body><b>Error!</b><br>{e}</body></html>";
                             Console.WriteLine(e.ToString());
                         }
-                        pageData = "<!DOCTYPE><html><head></head><body><b>DONE!</b><br>(Please close this tab/window)</body></html>";
                         runServer = false;
                     }
                     else if (query.Contains("error=access_denied"))
@@ -160,50 +172,62 @@
             {
                 loggedIn = true;
             }
+            loggingIn = false;
         }
 
         public async void Update()
         {
-            if (_secrets?.IsValid() ?? false)
-            {
-                if (!pubsub?.IsClientConnected() ?? true)
-                {
-                    await StartTwitchPubSubClient();
-                    return;
-                }
+            if (!_secrets?.IsValid() ?? true)
+                return;
 
+            if (pubsub?.IsClientConnected() ?? false)
+            {
                 if (!pubsub.IsChannelConnected(_secrets.username, out PubSubChannel))
                 {
                     PubSubChannel = pubsub.JoinChannel(_secrets.username);
                     PubSubChannel.MessageReceived += eventManager.PubSubMessageReceived;
-                    return;
                 }
+            }
 
-                if (!client?.IsClientConnected() ?? true)
-                {
-                    await StartTwitchChatClient();
-                    return;
-                }
-
-                if(!client.IsChannelConnected(_secrets.username, out TextChannel))
+            if (client?.IsClientConnected() ?? false)
+            {
+                if (!client.IsChannelConnected(_secrets.username, out TextChannel))
                 {
                     TextChannel = await client.JoinChannelAsync(_secrets.username, cts);
                     TextChannel.MessageReceived += eventManager.ChatMessageReceived;
                     await TextChannel.SendMessageAsync($"ModBot Connected.", cts);
-                    return;
                 }
-
-                timer.Update();
             }
+
+
+            if((!client?.IsClientConnected() ?? true) && (!pubsub?.IsClientConnected() ?? true))
+            {
+                return;
+            }
+
+            timer.Update();
         }
+
+        public bool IsChatClientConnected() => (client?.IsClientConnected() ?? false) && !client.IsChannelConnected(_secrets.username, out TextChannel);
+
 
         public async Task StartTwitchChatClient()
         {
-            while(!loggedIn)
-                await Task.Yield();
+            if (!LoggedIn)
+            {
+                if (!loggingIn)
+                {
+                    loggingIn = true;
+                    Task.Factory.StartNew(async () => await Login()).Wait();
+                }
 
-            if(!_secrets?.IsValid() ?? true)
-                return;
+                while (loggingIn)
+                    await Task.Yield();
+
+                if (!LoggedIn)
+                    return;
+            }
+
             try
             {
                 if (client is null)
@@ -218,9 +242,7 @@
                     TextChannel = await client.JoinChannelAsync(_secrets.username, cts);
                     TextChannel.MessageReceived += eventManager.ChatMessageReceived;
                     await TextChannel.SendMessageAsync($"ModBot Connected.", cts);
-                    await TextChannel.SendMessageAsync($"{eventLookup.GetAll()}", cts);
                     Console.WriteLine("ModBot Connected");
-                    Console.WriteLine(eventLookup.GetAll());
                 }
                 else if (!client.IsChannelConnected(_secrets.username, out TextChannel))
                 {
@@ -232,17 +254,14 @@
             catch (Exception e)
             {
                 Console.WriteLine(e);
-                await StartTwitchChatClient();
             }
         }
 
         public async Task StopTwitchChatClient()
         {
-            while (!loggedIn)
-                await Task.Yield();
-
-            if (!_secrets?.IsValid() ?? true)
+            if (!LoggedIn)
                 return;
+
             if (client is null || !client.IsClientConnected())
             { 
                 return;
@@ -263,13 +282,25 @@
             }
         }
 
+        public bool IsPubSubClientConnected() => (pubsub?.IsClientConnected() ?? false) && !pubsub.IsChannelConnected(_secrets.username, out PubSubChannel);
+
         public async Task StartTwitchPubSubClient()
         {
-            while (!loggedIn)
-                await Task.Yield();
+            if (!LoggedIn)
+            {
+                if (!loggingIn)
+                {
+                    loggingIn = true;
+                    Task.Factory.StartNew(async () => await Login()).Wait();
+                }
 
-            if (!_secrets?.IsValid() ?? true)
-                return;
+                while (loggingIn)
+                    await Task.Yield();
+
+                if (!LoggedIn)
+                    return;
+            }
+
             try
             {
                 if (pubsub is null)
@@ -293,16 +324,12 @@
             catch(Exception e)
             {
                 Console.WriteLine(e);
-                await StartTwitchPubSubClient();
             }
         }
 
         public async Task StopTwitchPubSubClient()
         {
-            while (!loggedIn)
-                await Task.Yield();
-
-            if (!_secrets?.IsValid() ?? true)
+            if (!LoggedIn)
                 return;
 
             if (pubsub is null)
@@ -323,5 +350,6 @@
                 await pubsub.DisconnectAsync(cts2);
             }
         }
+
     }
 }

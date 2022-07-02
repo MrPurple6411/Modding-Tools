@@ -1,7 +1,9 @@
 ﻿namespace TwitchController
 {
     using System;
+    using System.Collections.Generic;
     using System.Text.RegularExpressions;
+    using TwitchController.Player_Events.Models;
 
     internal class TwitchEventManager
     {
@@ -14,35 +16,59 @@
 
         public void ChatMessageReceived(object _, Message e)
         {
-            if (e.TriggerText.Trim() == "!events")
+            string triggerLower = e.TriggerText.ToLower().Trim();
+
+            if (triggerLower == "!allevents")
             {
-                Console.WriteLine($"User:{e.User},  costs");
-                string msg = controller.eventLookup.GetBitCosts();
-                if (!string.IsNullOrWhiteSpace(msg))
-                {
-                    controller.TextChannel.SendMessageAsync(msg, controller.cts);
-                }
+                controller.eventLookup.SendAllEvents();
                 return;
             }
 
-            if (e.User.ToLower().Trim() == Controller._secrets.username.ToLower().Trim() || e.User.ToLower().Trim() == "mrpurple6411")
+            if (triggerLower == "!bitsevents")
             {
-                string[] x = e.TriggerText.Split('/');
-
-                if(x.Length == 2)
-                {
-                    string user = x[0];
-                    string trigger = x[1];
-                    Console.WriteLine($"User:{user},  Trigger:{trigger}");
-                    controller.eventLookup.Lookup(trigger, user);
-                }
+                controller.eventLookup.SendBitsEvents();
+                return;
             }
 
-            if(e.User.ToLower().TrimEnd().TrimStart() == Controller._secrets.botname.ToLower().TrimEnd().TrimStart())
+            string username = e.User.ToLower().Trim();
+            string streamer = Controller._secrets.username.ToLower().Trim();
+            string bot = Controller._secrets.botname.ToLower().Trim();
+            List<string> mods = Controller._secrets.authorizedModerators;
+
+            if (username == streamer || username == bot || mods.Contains(username))
             {
-                if(e.TriggerText.Contains("WE DID IT! WE HIT A LEVEL 5 HYPE TRAIN!"))
+                string user;
+                int bits;
+
+                if (e.TriggerText.StartsWith("!"))
                 {
-                    controller.eventLookup.Lookup("HypeTrainLevel5Complete", "HypeTrain 5 Complete!!!");
+                    string[] x = e.TriggerText.Split('/');
+
+                    if (x.Length == 2)
+                    {
+                        user = x[0].Substring(1);
+                        string trigger = x[1];
+                        if (!int.TryParse(trigger, out bits))
+                        {
+                            if (controller.eventLookup.Contains(trigger))
+                            {
+                                Console.WriteLine($"User:{user},  Trigger:{trigger}");
+                                controller.eventLookup.Lookup(trigger, user, e);
+                                return;
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"User:{user},  Bits:{bits}");
+                            controller.eventLookup.Lookup(bits, user, e);
+                            return;
+                        }
+                    }
+                }
+
+                if (e.TriggerText.Contains("WE DID IT! WE HIT A LEVEL 5 HYPE TRAIN!"))
+                {
+                    controller.eventLookup.Lookup("HypeTrainLevel5Complete", "HypeTrain 5 Complete!!!", e);
                     return;
                 }
 
@@ -55,7 +81,7 @@
                 if (!match.Success)
                     return;
 
-                string user = match.Groups["user"].Value;
+                user = match.Groups["user"].Value;
                 string donation = not_num_period.Replace(match.Groups["donation"].Value, "");
 
                 if (!float.TryParse(donation, out float donated))
@@ -64,11 +90,12 @@
                     return;
                 }
 
-                int bits = (int)(donated * 100);
+                bits = (int)(donated * 100);
 
                 Console.WriteLine($"User:{user},  Bits:{bits}");
-                controller.eventLookup.Lookup(user, bits);
+                controller.eventLookup.Lookup(bits, user, e);
             }
+
         }
 
         public void PubSubMessageReceived(object _, Message e)
@@ -76,14 +103,14 @@
             if (e.Host == ChannelPointsHost() || e.Host == SubscriptionHost())
             {
                 Console.WriteLine($"Host:{e.Host},  User:{e.User},  Trigger:{e.TriggerText}");
-                controller.eventLookup.Lookup(e.TriggerText, e.User);
+                controller.eventLookup.Lookup(e.TriggerText, e.User, e);
                 return;
             }
 
             if (e.Host == BitsHost())
             {
                 Console.WriteLine($"{e.Host}: {e.User}, {e.TriggerText}");
-                controller.eventLookup.Lookup(e.User, int.Parse(e.TriggerText));
+                controller.eventLookup.Lookup(int.Parse(e.TriggerText), e.User, e);
                 return;
             }
         }

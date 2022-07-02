@@ -57,8 +57,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="GlobalSuppressions.cs" />
+    <Compile Include="Player Events\Models\DataEventInfo.cs" />
     <Compile Include="Player Events\Models\EventInfo.cs" />
     <Compile Include="Player Events\EventLookup.cs" />
+    <Compile Include="Player Events\Models\TimedEventInfo.cs" />
     <Compile Include="Player Events\TimerCooldown.cs" />
     <Compile Include="TwitchClients\Models\ListenRequestData.cs" />
     <Compile Include="TwitchClients\Models\ListenRequest.cs" />
