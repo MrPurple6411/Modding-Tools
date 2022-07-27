@@ -30,12 +30,9 @@
         // Parameter: ID, Action<string, string>, BitCost, CooldownSeconds
         internal readonly Dictionary<string, EventInfo> EventDictionary = new Dictionary<string, EventInfo>();
 
-        public void RemoveEvent(string EventID)
+        public bool RemoveEvent(string EventID)
         {
-            if (EventDictionary.Keys.Contains(EventID))
-            {
-                EventDictionary.Remove(EventID);
-            }
+            return EventDictionary.Remove(EventID);
         }
 
         public void ChangeCost(string EventID, int newCost)
@@ -44,6 +41,10 @@
             {
                 eventInfo.BitCost = newCost;
                 EventDictionary[EventID] = eventInfo;
+                if (EventID == "HypeTrain")
+                {
+                    controller.HypeTrainEventCost = newCost;
+                }
             }
         }
 
@@ -52,6 +53,10 @@
             if (!EventDictionary.Keys.Contains(EventID))
             {
                 EventDictionary.Add(EventID, eventInfo);
+                if(EventID == "HypeTrain" && controller.HypeTrainEventCost < eventInfo.BitCost)
+                {
+                    controller.HypeTrainEventCost = eventInfo.BitCost;
+                }
                 return true;
             }
             Console.WriteLine($"[Error] Event with ID: {EventID} already registered!");
