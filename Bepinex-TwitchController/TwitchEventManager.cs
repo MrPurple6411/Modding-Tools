@@ -47,7 +47,7 @@
                     if (x.Length == 2)
                     {
                         user = x[0].Substring(1);
-                        string trigger = x[1];
+                        string trigger = x[1].Trim();
                         if (!int.TryParse(trigger, out bits))
                         {
                             if (controller.eventLookup.Contains(trigger))
@@ -55,6 +55,10 @@
                                 Console.WriteLine($"User:{user},  Trigger:{trigger}");
                                 controller.eventLookup.Lookup(trigger, user, e);
                                 return;
+                            }
+                            else
+                            {
+                                Console.WriteLine($"{trigger} Not Found");
                             }
                         }
                         else
