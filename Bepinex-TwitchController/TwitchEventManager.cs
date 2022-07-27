@@ -24,7 +24,7 @@
                 return;
             }
 
-            if (triggerLower == "!bitsevents")
+            if (triggerLower == "!events")
             {
                 controller.eventLookup.SendBitsEvents();
                 return;
