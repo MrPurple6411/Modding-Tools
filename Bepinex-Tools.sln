@@ -3,13 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.1.32210.238
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bepinex-Publicizer", "Bepinex-Publicizer\Bepinex-Publicizer.csproj", "{AF6224AE-B14E-4FFF-9400-77EE91F9F9D9}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TwitchController", "Bepinex-TwitchController\TwitchController.csproj", "{625D8F6B-1C3C-45CE-925E-D060B001CE4C}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VRPatcher", "GlobalGameManagerVRPatcher\VRPatcher.csproj", "{FB618AB1-9EFB-4845-8C20-85C54A335E78}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NitroxCompatOverride", "NitroxCompatOverride\NitroxCompatOverride.csproj", "{8A8DC1C0-87BE-485B-8BF6-70B72E97FE7B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -17,10 +13,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{AF6224AE-B14E-4FFF-9400-77EE91F9F9D9}.Debug|Any CPU.ActiveCfg = Release|Any CPU
-		{AF6224AE-B14E-4FFF-9400-77EE91F9F9D9}.Debug|Any CPU.Build.0 = Release|Any CPU
-		{AF6224AE-B14E-4FFF-9400-77EE91F9F9D9}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{AF6224AE-B14E-4FFF-9400-77EE91F9F9D9}.Release|Any CPU.Build.0 = Release|Any CPU
 		{625D8F6B-1C3C-45CE-925E-D060B001CE4C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{625D8F6B-1C3C-45CE-925E-D060B001CE4C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{625D8F6B-1C3C-45CE-925E-D060B001CE4C}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -29,10 +21,6 @@ Global
 		{FB618AB1-9EFB-4845-8C20-85C54A335E78}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FB618AB1-9EFB-4845-8C20-85C54A335E78}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FB618AB1-9EFB-4845-8C20-85C54A335E78}.Release|Any CPU.Build.0 = Release|Any CPU
-		{8A8DC1C0-87BE-485B-8BF6-70B72E97FE7B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{8A8DC1C0-87BE-485B-8BF6-70B72E97FE7B}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{8A8DC1C0-87BE-485B-8BF6-70B72E97FE7B}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{8A8DC1C0-87BE-485B-8BF6-70B72E97FE7B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
