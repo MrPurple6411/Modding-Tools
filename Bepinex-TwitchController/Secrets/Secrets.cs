@@ -1,11 +1,9 @@
 ﻿namespace TwitchController
 {
-    using LitJson;
+    using Newtonsoft.Json;
     using System;
     using System.Collections.Generic;
     using System.IO;
-    using System.Reflection;
-    using System.Text;
 
     public class Secrets
     {
@@ -29,7 +27,7 @@
             {
                 try
                 {
-                    config = JsonMapper.ToObject<Config>(File.ReadAllText(ConfigFilePath)); 
+                    config = JsonConvert.DeserializeObject<Config>(File.ReadAllText(ConfigFilePath)); 
                 }
                 catch (Exception e)
                 {
@@ -40,11 +38,6 @@
             else
             {
                 config = new Config();
-                StringBuilder stringBuilder = new StringBuilder();
-                JsonMapper.ToJson(config, new JsonWriter(stringBuilder) { PrettyPrint = true });
-
-                File.WriteAllText(ConfigFilePath, stringBuilder.ToString());
-
             }
             
             botname = config.BotName;
@@ -54,10 +47,7 @@
                 authorizedModerators.Add(authorizedModerator.ToLower().Trim());
             }
 
-            StringBuilder stringBuilder2 = new StringBuilder();
-            JsonMapper.ToJson(config, new JsonWriter(stringBuilder2) { PrettyPrint = true });
-            File.WriteAllText(ConfigFilePath, stringBuilder2.ToString());
-
+            File.WriteAllText(ConfigFilePath, JsonConvert.SerializeObject(config, Formatting.Indented));
         }
 
         public bool IsValid()

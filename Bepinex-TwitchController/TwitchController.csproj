@@ -43,14 +43,11 @@
     <Reference Include="Costura, Version=4.1.0.0, Culture=neutral, PublicKeyToken=9919ef960d84173d, processorArchitecture=MSIL">
       <HintPath>..\packages\Costura.Fody.4.1.0\lib\net40\Costura.dll</HintPath>
     </Reference>
-    <Reference Include="LitJSON, Version=0.18.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\LitJson.0.18.0\lib\net45\LitJSON.dll</HintPath>
+    <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.13.0.2\lib\net45\Newtonsoft.Json.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="System" />
-    <Reference Include="System.Memory, Version=4.0.1.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <Private>True</Private>
-    </Reference>
     <Reference Include="System.Net.Http">
       <Private>True</Private>
     </Reference>
@@ -65,6 +62,7 @@
     <Compile Include="TwitchClients\Models\ListenRequestData.cs" />
     <Compile Include="TwitchClients\Models\ListenRequest.cs" />
     <Compile Include="TwitchClients\Models\PubSubResponses.cs" />
+    <Compile Include="TwitchClients\TwitchEventSubSocketClient.cs" />
     <Compile Include="TwitchEventManager.cs" />
     <Compile Include="TwitchClients\Channel.cs" />
     <Compile Include="TwitchClients\Models\Message.cs" />

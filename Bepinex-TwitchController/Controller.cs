@@ -1,5 +1,7 @@
 ﻿namespace TwitchController
 {
+    using Newtonsoft.Json;
+    using Newtonsoft.Json.Linq;
     using System;
     using System.Diagnostics;
     using System.IO;
@@ -7,7 +9,6 @@
     using System.Reflection;
     using System.Text;
     using System.Threading.Tasks;
-    using LitJson;
     using TwitchController.Player_Events;
 
     public class Controller
@@ -30,7 +31,6 @@
         private static bool loggedIn;
         public static bool LoggedIn => loggedIn && _secrets.IsValid();
 
-
         public readonly EventLookup eventLookup;
         public bool HypeTrain = false;
         public int HypeLevel = 1;
@@ -49,7 +49,7 @@
             eventManager = new TwitchEventManager(this);
             timer = new TimerCooldown(this);
         }
-        
+
         /// <summary>
         /// Launches a HTTPListener on localhost:3000 and then opens the twitch authorization page to get users authorization.
         /// Then when the redirect happens it will detect the users auth token from the address bar.
@@ -81,7 +81,7 @@
                 "  <div style=\"position: absolute; top: 50 %; left: 50 %; margin - top: -50px; margin - left: -50px; width: 100px; height: 100px;\">" +
                 "      Please Wait while the response is processed." +
                 "  </div>" +
-                "  </body>"+
+                "  </body>" +
                 "<script>const o=window.location.hash;window.location.href='http://localhost:3000/?'+o.substring(1);</script>" +
                 "</html>";
             listener.Prefixes.Add(url);
@@ -134,8 +134,7 @@
                             HttpWebResponse response = (HttpWebResponse)request.GetResponse();
                             StreamReader reader = new StreamReader(response.GetResponseStream());
                             string jsonResponse = reader.ReadToEnd();
-
-                            var objectResponse = JsonMapper.ToObject(jsonResponse);
+                            JObject objectResponse = JsonConvert.DeserializeObject<JObject>(jsonResponse);
                             _secrets.id = (string)objectResponse["data"][0]["id"];
                             _secrets.username = (string)objectResponse["data"][0]["login"];
                             pageData = "<!DOCTYPE><html><head></head><body><b>DONE!</b><br>(Please close this tab/window)</body></html>";
@@ -200,7 +199,7 @@
             }
 
 
-            if((!client?.IsClientConnected() ?? true) && (!pubsub?.IsClientConnected() ?? true))
+            if ((!client?.IsClientConnected() ?? true) && (!pubsub?.IsClientConnected() ?? true))
             {
                 return;
             }
@@ -208,8 +207,21 @@
             timer.Update();
         }
 
-        public bool IsChatClientConnected() => (client?.IsClientConnected() ?? false) && !client.IsChannelConnected(_secrets.username, out TextChannel);
+        public bool IsChatClientConnected()
+        {
+            if (client is null) return false;
 
+            if (!client.IsClientConnected()) 
+                return false;
+
+            //Console.WriteLine("Chat Client Connected");
+
+            if (!client.IsChannelConnected(_secrets.username, out TextChannel)) 
+                return false;
+            
+            //Console.WriteLine($"Chat Channel {TextChannel.Name} Connected");
+            return true;
+        }
 
         public async Task StartTwitchChatClient()
         {
@@ -263,7 +275,7 @@
                 return;
 
             if (client is null || !client.IsClientConnected())
-            { 
+            {
                 return;
             }
 
@@ -282,7 +294,21 @@
             }
         }
 
-        public bool IsPubSubClientConnected() => (pubsub?.IsClientConnected() ?? false) && !pubsub.IsChannelConnected(_secrets.username, out PubSubChannel);
+        public bool IsPubSubClientConnected()
+        {
+            if (pubsub is null) return false;
+
+            if (!pubsub.IsClientConnected())
+                return false;
+
+            //Console.WriteLine("PubSub Client Connected");
+
+            if (!pubsub.IsChannelConnected(_secrets.username, out PubSubChannel))
+                return false;
+
+            //Console.WriteLine($"PubSub Channel {PubSubChannel.Name} Connected");
+            return true;
+        }
 
         public async Task StartTwitchPubSubClient()
         {
@@ -321,7 +347,7 @@
                     PubSubChannel.MessageReceived += eventManager.PubSubMessageReceived;
                 }
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 Console.WriteLine(e);
             }
@@ -350,6 +376,5 @@
                 await pubsub.DisconnectAsync(cts2);
             }
         }
-
     }
 }

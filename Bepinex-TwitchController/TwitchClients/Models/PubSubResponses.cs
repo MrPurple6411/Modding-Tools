@@ -1,7 +1,6 @@
 ﻿namespace TwitchController.TwitchClients.Models
 {
-
-    using LitJson;
+    using Newtonsoft.Json.Linq;
     using System.Collections.Generic;
 
     public class MessageResponse
@@ -57,18 +56,18 @@
                     public int cost { get; set; }
                     public bool is_user_input_required { get; set; }
                     public bool is_sub_only { get; set; }
-                    public JsonData image { get; set; }
-                    public JsonData default_image { get; set; }
+                    public JObject image { get; set; }
+                    public JObject default_image { get; set; }
                     public string background_color { get; set; }
                     public bool is_enabled { get; set; }
                     public bool is_paused { get; set; }
                     public bool is_in_stock { get; set; }
-                    public JsonData max_per_stream { get; set; }
+                    public JObject max_per_stream { get; set; }
                     public bool should_redemptions_skip_request_queue { get; set; }
                     public string template_id { get; set; }
                     public string updated_for_indicator_at { get; set; }
-                    public JsonData max_per_user_per_stream { get; set; }
-                    public JsonData global_cooldown { get; set; }
+                    public JObject max_per_user_per_stream { get; set; }
+                    public JObject global_cooldown { get; set; }
                     public string redemptions_redeemed_current_stream { get; set; }
                     public string cooldown_expires_at { get; set; }
 
@@ -76,7 +75,6 @@
             }
         }
     }
-
 
     public class BitsEvent
     {

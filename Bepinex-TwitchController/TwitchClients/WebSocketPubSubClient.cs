@@ -1,6 +1,6 @@
 ﻿namespace TwitchController
 {
-    using LitJson;
+    using Newtonsoft.Json;
     using System;
     using System.Collections.Generic;
     using System.Linq;
@@ -44,16 +44,6 @@
             return sent;
         }
 
-        public static IEnumerable<T[]> AsBatches<T>(T[] input, int n)
-        {
-            for (int i = 0, r = input.Length; r >= n; r -= n, i += n)
-            {
-                T[] result = new T[n];
-                Array.Copy(input, i, result, 0, n);
-                yield return result;
-            }
-        }
-
         public async Task<bool> ConnectAsync(string token, string channelId, CancellationToken cancellationToken)
         {
             try
@@ -71,9 +61,7 @@
                     lr.data = lrd;
                     lr.nonce = "lkjsdhfiusdagf";
                     lr.type = "LISTEN";
-                    StringBuilder stringBuilder = new StringBuilder();
-                    JsonMapper.ToJson(lr, new JsonWriter(stringBuilder));
-                    string jlr = stringBuilder.ToString();
+                    string jlr = JsonConvert.SerializeObject(lr);
                     //Controller._instance._log.LogMessage(jlr);
                     await SendMessageAsync(jlr, cancellationToken);
 

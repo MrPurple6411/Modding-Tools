@@ -1,6 +1,7 @@
 ﻿namespace TwitchController
 {
-    using LitJson;
+    using Newtonsoft.Json;
+    using Newtonsoft.Json.Linq;
     using System;
     using System.Collections.Generic;
     using System.Linq;
@@ -135,149 +136,154 @@
         public bool TryParsePrivateMessage(string message, out Message msg)
         {
             msg = new Message();
-            JsonData data = JsonMapper.ToObject(new JsonReader(message));
+            JObject data = JsonConvert.DeserializeObject<JObject>(message);
 
-            string msgType = data[0].ToString().ToLower();
-            List<string> keys = data.Keys.ToList();
+            string msgType = data["type"].ToString().ToLower();
+            List<string> keys = data.Properties().Select(x => x.Name).ToList();
 
-            switch(msgType)
+            try
             {
-                case "pong":
-                    Console.WriteLine($"PubSub Pong Recieved!");
-                    return false;
-                case "response":
-                    if(keys.Contains("error") && !string.IsNullOrWhiteSpace(data[keys.IndexOf("error")].ToString()))
-                    {
-                        Console.WriteLine($"[Error] Failed to properly connect to PubSub! Restarting game REQUIRED!");
-                    }
-                    else
-                    {
-                        Console.WriteLine($"Connected to PubSub!");
-                    }
-                    return false;
-                case "reconnect":
-                    Console.WriteLine($"[Warning] Twitch Server Restarting connection will be lost within 30 seconds.");
-                    _twitchMessageClient.DisconnectAsync(Controller.Instance.cts2).Wait();
-                    break;
-                case "message":
-                    MessageResponse messageResponse = JsonMapper.ToObject<MessageResponse>(message);
-                    var MR = messageResponse.data.message.Replace(@"\", "");
-                    var host = messageResponse.data.topic;
+                switch (msgType)
+                {
+                    case "pong":
+                        Console.WriteLine($"PubSub Pong Recieved!");
+                        return false;
+                    case "response":
+                        if (keys.Contains("error") && !string.IsNullOrWhiteSpace(data["error"].ToString()))
+                        {
+                            Console.WriteLine($"[Error] Failed to properly connect to PubSub! Restarting game REQUIRED!");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Connected to PubSub!");
+                        }
+                        return false;
+                    case "reconnect":
+                        Console.WriteLine($"[Warning] Twitch Server Restarting connection will be lost within 30 seconds.");
+                        _twitchMessageClient.DisconnectAsync(Controller.Instance.cts2).Wait();
+                        break;
+                    case "message":
+                        MessageResponse messageResponse = JsonConvert.DeserializeObject<MessageResponse>(message);
+                        var MR = messageResponse.data.message.Replace(@"\", "");
+                        var host = messageResponse.data.topic;
 
-                    switch(host.Split('.')[0])
-                    {
-                        case "channel-subscribe-events-v1":
-                            try
-                            {
-                                SubEvent subEvent = JsonMapper.ToObject<SubEvent>(MR);
-
-                                msg.Channel = subEvent.channel_name.ToLower();
-                                msg.Host = host;
-                                msg.RawMessage = message;
-                                msg.TriggerText = subEvent.sub_plan;
-                                msg.User = subEvent.is_gift && !string.IsNullOrEmpty(subEvent.user_name)  ? subEvent.recipient_display_name : subEvent.display_name;
-                                msg.Data = subEvent.sub_message.message;
-
-                                return true;
-
-                            }
-                            catch(Exception e)
-                            {
-                                Console.WriteLine($"[Error] Failed to convert {MR} into SubEvent.", e);
-                                return false;
-                            }
-                        case "channel-bits-events-v2":
-                            try
-                            {
-                                BitsEvent bitsEvent = JsonMapper.ToObject<BitsEvent>(MR);
-                                msg.Channel = bitsEvent.data.channel_name.ToLower();
-                                msg.Host = host;
-                                msg.RawMessage = message;
-                                msg.TriggerText = bitsEvent.data.bits_used.ToString();
-                                msg.User = bitsEvent.is_anonymous ? "Anonymous" : bitsEvent.data.user_name;
-                                msg.Data = bitsEvent.data.chat_message;
-
-                                return true;
-                            }
-                            catch(Exception e)
-                            {
-                                Console.WriteLine($"[Error] Failed to convert {MR} into BitsEvent.", e);
-                                return false;
-                            }
-                        case "channel-points-channel-v1":
-                            if(MR.Contains("reward-redeemed"))
-                            {
+                        switch (host.Split('.')[0])
+                        {
+                            case "channel-subscribe-events-v1":
                                 try
                                 {
-                                    JsonReader reader = new JsonReader(MR) { SkipNonMembers = true, AllowComments = true, AllowSingleQuotedStrings = true };
-                                    ChannelPointsMessageResponse pointsMessage = JsonMapper.ToObject<ChannelPointsMessageResponse>(reader);
+                                    SubEvent subEvent = JsonConvert.DeserializeObject<SubEvent>(MR);
 
-                                    msg.Host = $"channel-points-channel-v1.{Controller._secrets.id}";
-                                    msg.Channel = Controller._secrets.username.ToLower();
+                                    msg.Channel = subEvent.channel_name.ToLower();
+                                    msg.Host = host;
                                     msg.RawMessage = message;
-                                    msg.User = pointsMessage.data.redemption.user.display_name;
-                                    msg.TriggerText = pointsMessage.data.redemption.reward.title;
-                                    msg.Data = pointsMessage.data.redemption.user_input;
+                                    msg.TriggerText = subEvent.sub_plan;
+                                    msg.User = subEvent.is_gift && !string.IsNullOrEmpty(subEvent.user_name) ? subEvent.recipient_display_name : subEvent.display_name;
+                                    msg.Data = subEvent.sub_message.message;
+
+                                    return true;
+
+                                }
+                                catch (Exception e)
+                                {
+                                    Console.WriteLine($"[Error] Failed to convert {MR} into SubEvent.", e);
+                                    return false;
+                                }
+                            case "channel-bits-events-v2":
+                                try
+                                {
+                                    BitsEvent bitsEvent = JsonConvert.DeserializeObject<BitsEvent>(MR);
+                                    msg.Channel = bitsEvent.data.channel_name.ToLower();
+                                    msg.Host = host;
+                                    msg.RawMessage = message;
+                                    msg.TriggerText = bitsEvent.data.bits_used.ToString();
+                                    msg.User = bitsEvent.is_anonymous ? "Anonymous" : bitsEvent.data.user_name;
+                                    msg.Data = bitsEvent.data.chat_message;
 
                                     return true;
                                 }
-                                catch(Exception e)
+                                catch (Exception e)
                                 {
-                                    Console.WriteLine($"[Error] Failed to convert {MR} into Points Event.", e);
+                                    Console.WriteLine($"[Error] Failed to convert {MR} into BitsEvent.", e);
                                     return false;
                                 }
-                            }
-                            return false;
-                        case "hype-train-events-v1":
-                            {
-                                JsonReader reader = new JsonReader(MR) { SkipNonMembers = true, AllowComments = true, AllowSingleQuotedStrings = true };
-                                JsonData hypeTrainMessage = JsonMapper.ToObject(reader);
-
-                                switch (hypeTrainMessage["type"].ToString())
+                            case "channel-points-channel-v1":
+                                if (MR.Contains("reward-redeemed"))
                                 {
-                                    case "hype-train-approaching":
-                                    case "hype-train-progression":
-                                    case "hype-train-conductor-update":
-                                    case "hype-train-cooldown-expiration":
+                                    try
+                                    {
+                                        ChannelPointsMessageResponse pointsMessage = JsonConvert.DeserializeObject<ChannelPointsMessageResponse>(MR);
 
-                                        return false;
-                                    case "hype-train-start":
-                                        {
-                                            Controller.Instance.HypeTrain = true;
-                                            controller.eventLookup.ChangeCost("HypeTrain", Controller.Instance.HypeTrainEventCost);
-                                            controller.eventLookup.Lookup("HypeTrainStart", "!!!HYPETRAIN STARTED!!!");
-                                            controller.eventLookup.SendBitsEvents();
-                                            return false;
-                                        }
-                                    case "hype-train-level-up":
-                                        {
-                                            controller.eventLookup.Lookup($"HypeTrainLevel{Controller.Instance.HypeLevel}Completed", $"!!!LEVEL {Controller.Instance.HypeLevel} HYPETRAIN!!!");
-                                            Controller.Instance.HypeLevel += 1;
-                                            return false;
-                                        }
-                                    case "hype-train-end":
-                                        {
-                                            Controller.Instance.HypeTrain = false;
-                                            Controller.Instance.HypeLevel = 1;
-                                            controller.eventLookup.ChangeCost("HypeTrain", 0);
-                                            controller.eventLookup.Lookup("HypeTrainEnd", $"!!!HYPETRAIN FINISHED!!!");
-                                            return false;
-                                        }
-                                    default:
-                                        Console.WriteLine($"Unhandled HypeTrain Event.\n{MR}");
-                                        return false;
+                                        msg.Host = $"channel-points-channel-v1.{Controller._secrets.id}";
+                                        msg.Channel = Controller._secrets.username.ToLower();
+                                        msg.RawMessage = message;
+                                        msg.User = pointsMessage.data.redemption.user.display_name;
+                                        msg.TriggerText = pointsMessage.data.redemption.reward.title;
+                                        msg.Data = pointsMessage.data.redemption.user_input;
 
+                                        return true;
+                                    }
+                                    catch (Exception e)
+                                    {
+                                        Console.WriteLine($"[Error] Failed to convert {MR} into Points Event.", e);
+                                        return false;
+                                    }
                                 }
-                            }
-                        default:
-                            Console.WriteLine($"[Error] PubSub Event Failed to Parse \n {message}");
-                            return false;
-                    }
+                                return false;
+                            case "hype-train-events-v1":
+                                {
+                                    JObject hypeTrainMessage = JsonConvert.DeserializeObject<JObject>(MR);
 
-                default:
-                    break;
+                                    switch (hypeTrainMessage["type"].ToString())
+                                    {
+                                        case "hype-train-approaching":
+                                        case "hype-train-progression":
+                                        case "hype-train-conductor-update":
+                                        case "hype-train-cooldown-expiration":
+
+                                            return false;
+                                        case "hype-train-start":
+                                            {
+                                                Controller.Instance.HypeTrain = true;
+                                                controller.eventLookup.ChangeCost("HypeTrain", Controller.Instance.HypeTrainEventCost);
+                                                controller.eventLookup.Lookup("HypeTrainStart", "!!!HYPETRAIN STARTED!!!");
+                                                controller.eventLookup.SendBitsEvents();
+                                                return false;
+                                            }
+                                        case "hype-train-level-up":
+                                            {
+                                                controller.eventLookup.Lookup($"HypeTrainLevel{Controller.Instance.HypeLevel}Completed", $"!!!LEVEL {Controller.Instance.HypeLevel} HYPETRAIN!!!");
+                                                Controller.Instance.HypeLevel += 1;
+                                                return false;
+                                            }
+                                        case "hype-train-end":
+                                            {
+                                                Controller.Instance.HypeTrain = false;
+                                                Controller.Instance.HypeLevel = 1;
+                                                controller.eventLookup.ChangeCost("HypeTrain", 0);
+                                                controller.eventLookup.Lookup("HypeTrainEnd", $"!!!HYPETRAIN FINISHED!!!");
+                                                return false;
+                                            }
+                                        default:
+                                            Console.WriteLine($"Unhandled HypeTrain Event.\n{MR}");
+                                            return false;
+
+                                    }
+                                }
+                            default:
+                                Console.WriteLine($"[Error] PubSub Event Failed to Parse \n {message}");
+                                return false;
+                        }
+
+                    default:
+                        break;
+                }
+
             }
-
+            catch (Exception e)
+            {
+                Console.WriteLine($"[Error] PubSub Event Failed to Parse \n {message}", e);
+            }
             return false;
         }
     }
