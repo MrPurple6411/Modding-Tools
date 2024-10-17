@@ -17,12 +17,10 @@
         public void ChatMessageReceived(object _, Message e)
         {
             string triggerLower = e.TriggerText.ToLower().Trim();
-
-            if (triggerLower == "!allevents")
-            {
-                controller.eventLookup.SendAllEvents();
-                return;
-            }
+            string username = e.User.Trim();
+            string streamer = Controller._secrets.username.Trim();
+            string bot = Controller._secrets.botname.Trim();
+            bool authorized = username == streamer || username == bot || Controller._secrets.authorizedModerators.Contains(username);
 
             if (triggerLower == "!events")
             {
@@ -30,44 +28,12 @@
                 return;
             }
 
-            string username = e.User.ToLower().Trim();
-            string streamer = Controller._secrets.username.ToLower().Trim();
-            string bot = Controller._secrets.botname.ToLower().Trim();
-            List<string> mods = Controller._secrets.authorizedModerators;
-
-            if (username == streamer || username == bot || mods.Contains(username))
+            if (authorized)
             {
-                string user;
-                int bits;
-
-                if (e.TriggerText.StartsWith("!"))
+                if (triggerLower == "!allevents")
                 {
-                    string[] x = e.TriggerText.Split('/');
-
-                    if (x.Length == 2)
-                    {
-                        user = x[0].Substring(1);
-                        string trigger = x[1].Trim();
-                        if (!int.TryParse(trigger, out bits))
-                        {
-                            if (controller.eventLookup.Contains(trigger))
-                            {
-                                Console.WriteLine($"User:{user},  Trigger:{trigger}");
-                                controller.eventLookup.Lookup(trigger, user, e);
-                                return;
-                            }
-                            else
-                            {
-                                Console.WriteLine($"{trigger} Not Found");
-                            }
-                        }
-                        else
-                        {
-                            Console.WriteLine($"User:{user},  Bits:{bits}");
-                            controller.eventLookup.Lookup(bits, user, e);
-                            return;
-                        }
-                    }
+                    controller.eventLookup.SendAllEvents();
+                    return;
                 }
 
                 if (e.TriggerText.Contains("WE DID IT! WE HIT A LEVEL 5 HYPE TRAIN!"))
@@ -78,26 +44,154 @@
 
                 Regex regex = new Regex(Controller._secrets.regex);
                 Match match = regex.Match(e.TriggerText);
-
                 Regex not_num_period = new Regex("[^0-9.]");
 
 
-                if (!match.Success)
-                    return;
-
-                user = match.Groups["user"].Value;
-                string donation = not_num_period.Replace(match.Groups["donation"].Value, "");
-
-                if (!float.TryParse(donation, out float donated))
+                if (match.Success)
                 {
-                    Console.WriteLine($"Parsing tip as float failed for {user} and amount of {donation}");
-                    return;
+                    string user = match.Groups["user"].Value;
+                    string donation = not_num_period.Replace(match.Groups["donation"].Value, "");
+
+                    if (!float.TryParse(donation, out float donated))
+                    {
+                        Console.WriteLine($"Parsing tip as float failed for {user} and amount of {donation}");
+                        return;
+                    }
+
+                    int tip = (int)(donated * 100);
+
+                    Console.WriteLine($"User:{user},  Tip:{tip}");
+                    controller.eventLookup.Lookup(tip, user, e);
                 }
 
-                bits = (int)(donated * 100);
+                if (e.TriggerText.StartsWith("!"))
+                {
+                    string[] x = e.TriggerText.Split('/');
 
-                Console.WriteLine($"User:{user},  Bits:{bits}");
-                controller.eventLookup.Lookup(bits, user, e);
+                    switch (x.Length)
+                    {
+                        case 1:
+                            {
+
+                                // if first letter after the ! is e, it's a named event and if it's b, it's bits
+                                string type = triggerLower.Substring(1, 2);
+
+                                if (type == "e")
+                                {
+                                    string trigger = e.TriggerText.Substring(3).Trim();
+                                    if (string.IsNullOrWhiteSpace(trigger))
+                                    {
+                                        // trigger !e is invalid as it needs an event name
+                                        Console.WriteLine($"[Error] Trigger {e.TriggerText} is invalid as it needs an event name eg !ePrime");
+                                    }
+
+                                    if (controller.eventLookup.Contains(trigger))
+                                    {
+                                        Console.WriteLine($"User:{streamer},  Trigger:{trigger}");
+                                        controller.eventLookup.Lookup(trigger, username, e);
+                                        return;
+                                    }
+                                    else
+                                    {
+                                        Console.WriteLine($"{trigger} Not Found");
+                                    }
+                                }
+                                else if (type == "b")
+                                {
+                                    string trigger = e.TriggerText.Substring(3);
+                                    if (int.TryParse(trigger, out int bits))
+                                    {
+                                        Console.WriteLine($"User:{username},  Bits:{bits}");
+                                        controller.eventLookup.Lookup(bits, username, e);
+                                        return;
+                                    }
+                                }
+                                else if (type == "$")
+                                {
+                                    string trigger = e.TriggerText.Substring(3);
+                                    if (float.TryParse(trigger, out float donated))
+                                    {
+                                        int tip = (int)(donated * 100);
+                                        Console.WriteLine($"User:{username},  Tip:{tip}");
+                                        controller.eventLookup.Lookup(tip, username, e);
+                                        return;
+                                    }
+                                }
+                                break;
+                            }
+                        case 2:
+                            {
+                                int bits;
+                                string user = x[0].Substring(1);
+                                string trigger = x[1].Trim();
+                                if (!int.TryParse(trigger, out bits))
+                                {
+                                    if (controller.eventLookup.Contains(trigger))
+                                    {
+                                        Console.WriteLine($"User:{user},  Trigger:{trigger}");
+                                        controller.eventLookup.Lookup(trigger, user, e);
+                                        return;
+                                    }
+                                    else
+                                    {
+                                        Console.WriteLine($"{trigger} Not Found");
+                                    }
+                                }
+                                else
+                                {
+                                    Console.WriteLine($"User:{user},  Bits:{bits}");
+                                    controller.eventLookup.Lookup(bits, user, e);
+                                    return;
+                                }
+
+                                break;
+                            }
+                        case 3:
+                            {
+                                string user = x[0].Substring(1);
+                                string type = x[1].Trim().ToLowerInvariant();
+                                string trigger = x[2].Trim();
+
+                                if ((type == "event" || type == "e"))
+                                {
+                                    if (controller.eventLookup.Contains(trigger))
+                                    {
+                                        Console.WriteLine($"User:{user},  Trigger:{trigger}");
+                                        controller.eventLookup.Lookup(trigger, user, e);
+                                        return;
+                                    }
+                                    else
+                                    {
+                                        Console.WriteLine($"{trigger} Not Found");
+                                    }
+                                }
+                                else if ((type == "bits" || type == "b"))
+                                {
+                                    int bits;
+                                    if (!int.TryParse(trigger, out bits))
+                                    {
+                                        Console.WriteLine($"failed to parse {trigger} in {e.TriggerText} to a bits value.");
+                                        return;
+                                    }
+                                    Console.WriteLine($"User:{user},  Bits:{bits}");
+                                    controller.eventLookup.Lookup(bits, user, e);
+                                    return;
+                                }
+                                else
+                                {
+                                    Console.WriteLine($"Invalid type {type} in {e.TriggerText}. Must be 'event', 'e', 'bits' or 'b'");
+                                    return;
+                                }
+
+                                break;
+                            }
+                        default:
+                            {
+                                Console.WriteLine($"Invalid number of arguments in {e.TriggerText}");
+                                return;
+                            }
+                    }
+                }
             }
 
         }
